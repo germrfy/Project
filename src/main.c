@@ -20,9 +20,21 @@
 
 #define ARRAY_SIZE(__x__)       (sizeof(__x__)/sizeof(__x__[0]))
 
+#define XDATA	0x08			// Register addresses of X, Y and Z readings from Accelerometer (8 bit values only)
+#define YDATA	0x09
+#define ZDATA	0x0A
+
+#define READ_INSTRUCTION	0x0B	// Accelerometer Read Instruction
+#define WRITE_INSTRUCTION	0x0A	// Accelerometer Write Instruction
+#define GARBAGE_DATA		0x00	// Garbage data for use when reading data
+
+#define SOME_REGISTER		0x00	// **PLACEHOLDER** NOT IMPLEMENTED, DELETE
+#define SOME_VALUE			0x00	// **PLACEHOLDER** NOT IMPLEMENTED, DELETE
+
 volatile uint8  counter  = 0; // current number of char received on UART currently in RxBuf[]
 volatile uint8  BufReady = 0; // Flag to indicate if there is a sentence worth of data in RxBuf
 volatile uint8  RxBuf[BUF_SIZE];
+uint8 x_data, y_data, z_data;
 
 
 //////////////////////////////////////////////////////////////////
@@ -44,6 +56,52 @@ void UART_ISR()
 		RxBuf[counter] = NULL;  // Null terminate
 		BufReady       = 1;	    // Indicate to rest of code that a full "sentence" has being received (and is in RxBuf)
 	}
+}
+
+//////////////////////////////////////////////////////////////////
+// Function to send byte to accelerometer via SPI
+//////////////////////////////////////////////////////////////////
+void sendByte(uint8 byte) {
+	pt2SPI->SPIDAT = byte;
+	pt2SPI->SPICON = (1 << BIT_POS_ISPI);
+	while(pt2SPI->SPICON)
+	{
+		
+	};
+}
+
+//////////////////////////////////////////////////////////////////
+// Function to send sequence of three bytes to accelerometer via SPI
+//////////////////////////////////////////////////////////////////
+void sendSequence(uint8 instruction, uint8 address, uint8 data) {
+	sendByte(instruction);
+	sendByte(address);
+	sendByte(data);
+}
+
+//////////////////////////////////////////////////////////////////
+// Function to read data from accelerometer via SPI
+// Sends three bytes to SPI then reads from SPIDAT
+//////////////////////////////////////////////////////////////////
+uint8 readData(uint8 address) {
+	sendSequence(READ_INSTRUCTION, address, GARBAGE_DATA);
+	return pt2SPI->SPIDAT;
+}
+
+//////////////////////////////////////////////////////////////////
+// Function to send sequence of three bytes to accelerometer via SPI
+//////////////////////////////////////////////////////////////////
+void getAccelerometerData(uint8 instruction, uint8 data) {
+	x_data = readData(XDATA);
+	y_data = readData(YDATA);
+	z_data = readData(ZDATA);
+}
+
+//////////////////////////////////////////////////////////////////
+// Function to perform initial set-up of Accelerometer
+//////////////////////////////////////////////////////////////////
+void initialSetupAccelerometerData(uint8 data) {
+	sendSequence(WRITE_INSTRUCTION, SOME_REGISTER, SOME_VALUE);			// FINISH OFF AFTER RESEARCH IS DONE
 }
 
 

@@ -74,12 +74,22 @@ typedef struct {
 	};
 } GPIO_t;
 
-
-
+typedef struct {
+	union {
+		volatile uint8 SPIDAT;
+		volatile uint32 reserved0;
+	};
+	union {
+		volatile uint8 SPICON;
+		volatile uint32 reserved1;
+	};	
+} SPI_t;
+#define BIT_POS_ISPI = 7		// Bit position of ISPI in the SPICON memory location
 
 
 // use above typedefs to define the memory map.
 #define pt2NVIC ((NVIC_t *)0xE000E100)
+#define pt2SPI	((SPI_t *)0x52000000)
 #define pt2UART ((UART_t *)0x51000000)
 #define pt2GPIO ((GPIO_t *)0x50000000)
 
