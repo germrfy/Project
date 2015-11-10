@@ -28,8 +28,11 @@
 #define WRITE_INSTRUCTION	0x0A	// Accelerometer Write Instruction
 #define GARBAGE_DATA		0x00	// Garbage data for use when reading data
 
-#define SOME_REGISTER		0x00	// **PLACEHOLDER** NOT IMPLEMENTED, DELETE
-#define SOME_VALUE			0x00	// **PLACEHOLDER** NOT IMPLEMENTED, DELETE
+#define FILTER_CTL_REG		0x2C	// Address of Filter Control Register
+#define FILTER_CTL_VAL		0x00	// **PLACEHOLDER** NOT IMPLEMENTED, DELETE
+
+#define POWER_CTL_REG		0x2D	// Address of Power Control Register
+#define POWER_CTL_VAL		0x02	// Set the accelerometer to Measurement mode disabling autosleep and wakeup modes - use internal clock of accelerometer
 
 volatile uint8  counter  = 0; // current number of char received on UART currently in RxBuf[]
 volatile uint8  BufReady = 0; // Flag to indicate if there is a sentence worth of data in RxBuf
@@ -101,7 +104,8 @@ void getAccelerometerData(uint8 instruction, uint8 data) {
 // Function to perform initial set-up of Accelerometer
 //////////////////////////////////////////////////////////////////
 void initialSetupAccelerometerData(uint8 data) {
-	sendSequence(WRITE_INSTRUCTION, SOME_REGISTER, SOME_VALUE);			// FINISH OFF AFTER RESEARCH IS DONE
+	sendSequence(WRITE_INSTRUCTION, POWER_CTL_REG, POWER_CTL_VAL);
+	sendSequence(WRITE_INSTRUCTION, FILTER_CTL_REG, FILTER_CTL_VAL);
 }
 
 
@@ -125,7 +129,7 @@ int main(void) {
 
 	
 	pt2UART->Control = (1 << UART_RX_FIFO_EMPTY_BIT_INT_POS);		// Enable rx data available interrupt, and no others.
-  pt2NVIC->Enable	 = (1 << NVIC_UART_BIT_POS);								// Enable interrupts for UART in the NVIC
+	pt2NVIC->Enable	 = (1 << NVIC_UART_BIT_POS);								// Enable interrupts for UART in the NVIC
 	wait_n_loops(nLOOPS_per_DELAY);										// wait a little
 	
 	printf("\r\nWelcome to Cortex-M0 SoC - Edited By Ger & Ian\r\n");			// output welcome message
