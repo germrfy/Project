@@ -1,12 +1,12 @@
 //------------------------------------------------------------------------------------------------------
-// Demonstration program for Cortex-M0 SoC design
+// Software to interact with an accelerometer (via SPI) and display data to user
 // 1)Enable the interrupt for UART - interrupt when character received
 // 2)Go to sleep mode
-// 3)On interruption, echo character back to the UART and collect into buffer
-// 4)When a whole sentence has been received, invert the case and send it back
+// 3)On interruption if the character is 'Return' enable rest of program to continue otherwise echo back to user
+// 4)Display X, Y and Z accelerometer data
 // 5)Loop forever doing the above.
 //
-// Version 4 - October 2015
+// Version 1 - November 2015
 //------------------------------------------------------------------------------------------------------
 #include <stdio.h>
 #include "DES_M0_SoC.h"
@@ -23,6 +23,8 @@
 #define XDATA	0x08			// Register addresses of X, Y and Z readings from Accelerometer (8 bit values only)
 #define YDATA	0x09
 #define ZDATA	0x0A
+#define TEMP_L  0x14
+#define TEMP_H  0x15
 
 #define READ_INSTRUCTION	0x0B	// Accelerometer Read Instruction
 #define WRITE_INSTRUCTION	0x0A	// Accelerometer Write Instruction
@@ -35,7 +37,7 @@
 #define POWER_CTL_VAL		0x02	// Set the accelerometer to Measurement mode disabling autosleep and wakeup modes - use internal clock of accelerometer
 
 volatile uint8  counter  = 0; // current number of char received on UART currently in RxBuf[]
-volatile uint8  BufReady = 0; // Flag to indicate if there is a sentence worth of data in RxBuf
+volatile uint8  GetData = 0; // Flag to indicate if there is a sentence worth of data in RxBuf
 volatile uint8  RxBuf[BUF_SIZE];
 
 
@@ -45,18 +47,14 @@ volatile uint8  RxBuf[BUF_SIZE];
 void UART_ISR()		
 {
 	char c;
-	c = pt2UART->RxData;	 // read a character from UART - interrupt only occurs when character waiting
-	RxBuf[counter]  = c;   // Store in buffer
-	counter++;             // Increment counter to indicate that there is now 1 more character in buffer
-	pt2UART->TxData = c;   // write (echo) the character to UART (assuming transmit queue not full!)
-	// counter is now the position that the next character should go into
-	// If this is the end of the buffer, i.e. if counter==BUF_SIZE-1, then null terminate
-	// and indicate the a complete sentence has been received.
-	// If the character just put in was a carriage return, do likewise.
+	c = pt2UART->RxData;	 					// read a character from UART - interrupt only occurs when character waiting
+	RxBuf[counter]  = c;   						// Store in buffer
+	counter++;             						// Increment counter to indicate that there is now 1 more character in buffer
+	pt2UART->TxData = c;   						// write (echo) the character to UART (assuming transmit queue not full!)
 	if (counter == BUF_SIZE-1 || c == ASCII_CR)  {
-		counter--;							// decrement counter (CR will be over-written)
-		RxBuf[counter] = NULL;  // Null terminate
-		BufReady       = 1;	    // Indicate to rest of code that a full "sentence" has being received (and is in RxBuf)
+		counter--;								// decrement counter (CR will be over-written)
+		RxBuf[counter] = NULL;  				// Null terminate
+		GetData = 1;	    					// Indicate to code that a user wants some data
 	}
 }
 
@@ -65,7 +63,7 @@ void UART_ISR()
 //////////////////////////////////////////////////////////////////
 void sendByte(uint8 byte) {	
 	pt2SPI->SPIDAT = byte;
-	while(!(pt2SPI->SPICON & SELECT_ISPI)	//Wait until ISPI is set high indicating transmission is complete.
+	while(!(pt2SPI->SPICON & (1 << BIT_POS_ISPI))	//Wait until ISPI is set high indicating transmission is complete.
 	{
 		
 	};	
@@ -80,7 +78,7 @@ void sendSequence(uint8 instruction, uint8 address, uint8 data) {
 	sendByte(instruction);
 	sendByte(address);
 	sendByte(data);
-	pt2SPI->SPICON = 0;			//Reset CS (and ISPI but we don't mind that) to zero
+	pt2SPI->SPICON = 0;			//Reset CS (and ISPI) to zero
 }
 
 //////////////////////////////////////////////////////////////////
@@ -93,13 +91,30 @@ uint8 readData(uint8 address) {
 }
 
 //////////////////////////////////////////////////////////////////
+// Function to read temperature data from accelerometer via SPI
+//////////////////////////////////////////////////////////////////
+uint16 readTemperature() {
+	uint8 t_hi, t_lo;
+	t_lo = readData(TEMP_L)
+	t_hi = readData(TEMP_H)
+	
+	return (t_hi << 8) + t_lo;
+}
+
+//////////////////////////////////////////////////////////////////
 // Function to perform initial set-up of Accelerometer
 //////////////////////////////////////////////////////////////////
 void initialSetupAccelerometerData() {
-	sendSequence(WRITE_INSTRUCTION, POWER_CTL_REG, POWER_CTL_VAL);
 	sendSequence(WRITE_INSTRUCTION, FILTER_CTL_REG, FILTER_CTL_VAL);
+	sendSequence(WRITE_INSTRUCTION, POWER_CTL_REG, POWER_CTL_VAL);
 }
 
+//////////////////////////////////////////////////////////////////
+// Function to convert 8 bit accelerometer data into a number of 'g'
+//////////////////////////////////////////////////////////////////
+float convertToG(uint8 data) {	
+		return (data - 0x7F)*4/(0xFF);	//Converting to G for the +/- 2g Range in accelerometer
+}
 
 //////////////////////////////////////////////////////////////////
 // Software delay function
@@ -111,7 +126,6 @@ void wait_n_loops(uint32 n) {
 		}
 }
 
-
 //////////////////////////////////////////////////////////////////
 // Main Function
 //////////////////////////////////////////////////////////////////
@@ -119,6 +133,7 @@ int main(void) {
 	uint8 i;
 	uint8 x_data, y_data, z_data;
 	uint8 TxBuf[ARRAY_SIZE(RxBuf)];
+	uint16 t_data;
 	
 	initialSetupAccelerometerData();			// Set up the accelerometer
 	
@@ -126,12 +141,11 @@ int main(void) {
 	pt2NVIC->Enable	 = (1 << NVIC_UART_BIT_POS);						// Enable interrupts for UART in the NVIC
 	wait_n_loops(nLOOPS_per_DELAY);										// wait a little
 	
-	printf("\r\nWelcome to Cortex-M0 SoC Accelerometer On Demand\r\n");			// output welcome message
+	printf("\r\nWelcome to Cortex-M0 SoC - Accelerometer On Demand\r\n");			// output welcome message
 
 	
 	while(1){			// loop forever
-			
-			// Do some processing before entering Sleep Mode
+			//Sequence to indicate device is alive during testing
 			
 			pt2GPIO->LED = pt2GPIO->Switches; 		// Echo the switches onto the LEDs
 			wait_n_loops(nLOOPS_per_DELAY);			// delay a little
@@ -140,45 +154,26 @@ int main(void) {
 			INVERT_LEDS;
 			wait_n_loops(nLOOPS_per_DELAY);
 			
-			printf("\r\nType some characters: ");
-			while (BufReady == 0)
+			printf("\r\nPress 'Return' for data: ");
+			while (GetData == 0)
 			{			
 				__wfi();  							// Wait For Interrupt: enter Sleep Mode - wake on character received
 				pt2GPIO->LED = RxBuf[counter-1];  	// display code for character received
 			}
+			GetData = 0;							// Reset 'GetData'
 			
 			x_data = readData(XDATA);
 			y_data = readData(YDATA);
 			z_data = readData(ZDATA);
+			t_data = readTemperature();
 			
 			printf("x : |%d|\n", x_data);			
 			printf("y : |%d|\n", y_data);
 			printf("z : |%d|\n", z_data);
-
-			// get here when CR entered or buffer full - do some processing with interrupts disabled
-			//pt2NVIC->Disable	 = (1 << NVIC_UART_BIT_POS);	// Disable interrupts for UART in the NVIC
-
-			// ---- start of critical section ----
-			/* for (i=0; i<=counter; i++)
-			{
-				if (RxBuf[i] >= 'A') {							// if this character is a letter (roughly)
-					TxBuf[i] = RxBuf[i] ^ CASE_BIT;  // copy to transmit buffer, changing case
-				}
-				else {
-					TxBuf[i] = RxBuf[i];             // non-letter so don't change case
-				}
-			}
-			
-			BufReady = 0;	// clear the flag
-			counter  = 0; // clear the counter for next sentence */
-					
-			// ---- end of critical section ----		
-			
-			//pt2NVIC->Enable	 = (1 << NVIC_UART_BIT_POS);		// Enable interrupts for UART in the NVIC
-
-
-			//printf("\r\n:--> |%s|\n Number of characters : |%d|\r\n", TxBuf, i);  // print the results between bars
-			
+			printf("temp : |%d|\n", t_data);	
+			// printf("x : |%.2f|\n", convertToG(x_data));			
+			// printf("y : |%.2f|\n", convertToG(y_data));
+			// printf("z : |%.2f|\n", convertToG(z_data));				
 			
 		} // end of infinite loop
 

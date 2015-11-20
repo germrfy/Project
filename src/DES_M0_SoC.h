@@ -86,9 +86,8 @@ typedef struct {
 } SPI_t;
 #define BIT_POS_ISPI = 1			// Bit position of ISPI in the SPICON memory location
 #define BIT_POS_CS = 0				// Bit position of ISPI in the SPICON memory location
-#define SELECT_ISPI = 00000010		// AND SPICON with this to isolate ISPI
-#define ZERO_ISPI = 11111101		// AND SPICON with this to set ISPI to zero
-#define ZERO_CS = 11111110			// AND SPICON with this to set CS to zero
+#define ZERO_ISPI = 0xfd			// AND SPICON with this to set ISPI to zero (11111101)
+#define ZERO_CS = 	0xfe			// AND SPICON with this to set CS to zero (11111110)
 
 
 // use above typedefs to define the memory map.
