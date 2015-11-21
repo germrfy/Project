@@ -63,7 +63,7 @@ void UART_ISR()
 //////////////////////////////////////////////////////////////////
 void sendByte(uint8 byte) {	
 	pt2SPI->SPIDAT = byte;
-	while(!(pt2SPI->SPICON & (1 << BIT_POS_ISPI))	//Wait until ISPI is set high indicating transmission is complete.
+	while(!(pt2SPI->SPICON & (1 << BIT_POS_ISPI)))	//Wait until ISPI is set high indicating transmission is complete.
 	{
 		
 	};	
@@ -95,8 +95,8 @@ uint8 readData(uint8 address) {
 //////////////////////////////////////////////////////////////////
 uint16 readTemperature() {
 	uint8 t_hi, t_lo;
-	t_lo = readData(TEMP_L)
-	t_hi = readData(TEMP_H)
+	t_lo = readData(TEMP_L);
+	t_hi = readData(TEMP_H);
 	
 	return (t_hi << 8) + t_lo;
 }
@@ -135,13 +135,15 @@ int main(void) {
 	uint8 TxBuf[ARRAY_SIZE(RxBuf)];
 	uint16 t_data;
 	
+	printf("\r\nWelcome to Cortex-M0 SoC - Accelerometer On Demand\r\n");			// output welcome message
+
+	
 	initialSetupAccelerometerData();			// Set up the accelerometer
 	
 	pt2UART->Control = (1 << UART_RX_FIFO_EMPTY_BIT_INT_POS);			// Enable rx data available interrupt, and no others.
 	pt2NVIC->Enable	 = (1 << NVIC_UART_BIT_POS);						// Enable interrupts for UART in the NVIC
 	wait_n_loops(nLOOPS_per_DELAY);										// wait a little
 	
-	printf("\r\nWelcome to Cortex-M0 SoC - Accelerometer On Demand\r\n");			// output welcome message
 
 	
 	while(1){			// loop forever
@@ -178,5 +180,3 @@ int main(void) {
 		} // end of infinite loop
 
 }  // end of main
-
-
