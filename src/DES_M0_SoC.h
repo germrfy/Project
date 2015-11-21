@@ -84,10 +84,11 @@ typedef struct {
 		volatile uint32 reserved1;
 	};	
 } SPI_t;
-#define BIT_POS_ISPI = 1			// Bit position of ISPI in the SPICON memory location
-#define BIT_POS_CS = 0				// Bit position of ISPI in the SPICON memory location
-#define ZERO_ISPI = 0xfd			// AND SPICON with this to set ISPI to zero (11111101)
-#define ZERO_CS = 	0xfe			// AND SPICON with this to set CS to zero (11111110)
+#define BIT_POS_ISPI  1			// Bit position of ISPI in the SPICON memory location
+#define ISPI_MASK  0x02			// Mask ISPI bit
+#define BIT_POS_CS  0				// Bit position of ISPI in the SPICON memory location
+#define ZERO_ISPI  0xfd			// AND SPICON with this to set ISPI to zero (11111101)
+#define ZERO_CS  	0xfe			// AND SPICON with this to set CS to zero (11111110)
 
 
 // use above typedefs to define the memory map.

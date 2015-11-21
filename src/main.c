@@ -14,7 +14,7 @@
 #define BUF_SIZE						100
 #define ASCII_CR						'\r'
 #define CASE_BIT						('A' ^ 'a')
-#define nLOOPS_per_DELAY		1000000
+#define nLOOPS_per_DELAY		3000000
 
 #define INVERT_LEDS					(pt2GPIO->LED ^= 0xff)
 
@@ -35,6 +35,8 @@
 
 #define POWER_CTL_REG		0x2D	// Address of Power Control Register
 #define POWER_CTL_VAL		0x02	// Set the accelerometer to Measurement mode disabling autosleep and wakeup modes - use internal clock of accelerometer
+
+#define ISPI_LOW	!(pt2SPI->SPICON & ISPI_MASK)		// checking if ISPI is low or not
 
 volatile uint8  counter  = 0; // current number of char received on UART currently in RxBuf[]
 volatile uint8  GetData = 0; // Flag to indicate if there is a sentence worth of data in RxBuf
@@ -63,10 +65,12 @@ void UART_ISR()
 //////////////////////////////////////////////////////////////////
 void sendByte(uint8 byte) {	
 	pt2SPI->SPIDAT = byte;
-	while(!(pt2SPI->SPICON & (1 << BIT_POS_ISPI)))	//Wait until ISPI is set high indicating transmission is complete.
+	while(ISPI_LOW)	//Wait until ISPI is set high indicating transmission is complete.
 	{
-		
-	};	
+		printf("\n SPICON = %d", pt2SPI->SPICON);
+		printf("\n SPIDAT = %d", pt2SPI->SPIDAT);		
+	};
+		printf("\n OUT! -> SPICON = %d", pt2SPI->SPICON);
 	pt2SPI->SPICON = pt2SPI->SPICON & ZERO_ISPI;		// Reset ISPI to zero
 }
 
@@ -149,30 +153,31 @@ int main(void) {
 	while(1){			// loop forever
 			//Sequence to indicate device is alive during testing
 			
-			pt2GPIO->LED = pt2GPIO->Switches; 		// Echo the switches onto the LEDs
-			wait_n_loops(nLOOPS_per_DELAY);			// delay a little
+			pt2GPIO->LED = readData(pt2GPIO->Switches); 		// Read from acc using address on switches and show result on LEDs
+			/* wait_n_loops(nLOOPS_per_DELAY);			// delay a little
 			INVERT_LEDS;							// invert the 8 rightmost LEDs
 			wait_n_loops(nLOOPS_per_DELAY);
 			INVERT_LEDS;
-			wait_n_loops(nLOOPS_per_DELAY);
-			
+			wait_n_loops(nLOOPS_per_DELAY); 
+
 			printf("\r\nPress 'Return' for data: ");
 			while (GetData == 0)
 			{			
 				__wfi();  							// Wait For Interrupt: enter Sleep Mode - wake on character received
 				pt2GPIO->LED = RxBuf[counter-1];  	// display code for character received
 			}
-			GetData = 0;							// Reset 'GetData'
+			GetData = 0; */							// Reset 'GetData'
 			
+			wait_n_loops(nLOOPS_per_DELAY);
 			x_data = readData(XDATA);
 			y_data = readData(YDATA);
 			z_data = readData(ZDATA);
-			t_data = readTemperature();
+			//t_data = readTemperature();
 			
 			printf("x : |%d|\n", x_data);			
 			printf("y : |%d|\n", y_data);
 			printf("z : |%d|\n", z_data);
-			printf("temp : |%d|\n", t_data);	
+			//printf("temp : |%d|\n", t_data);	
 			// printf("x : |%.2f|\n", convertToG(x_data));			
 			// printf("y : |%.2f|\n", convertToG(y_data));
 			// printf("z : |%.2f|\n", convertToG(z_data));				
