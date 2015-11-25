@@ -76,11 +76,11 @@ typedef struct {
 
 typedef struct {
 	union {
-		volatile uint8 SPIDAT;
+		volatile uint8 SPIDAT;				// Data Register
 		volatile uint32 reserved0;
 	};
 	union {
-		volatile uint8 SPICON;
+		volatile uint8 SPICON;				// Configuration/Status Register
 		volatile uint32 reserved1;
 	};	
 } SPI_t;
